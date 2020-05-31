@@ -91,7 +91,7 @@ def BFV_Decrypt(request):  # x_encrypted是明文x对应的密文类，secret_ke
     x_decrypted = Plaintext()
     decryptor.decrypt(x_encrypted, x_decrypted)
     return JsonResponse({
-        "x_decrypted": x_encrypted.to_string()
+        "x_decrypted": x_decrypted.to_string()
     })
 
 
