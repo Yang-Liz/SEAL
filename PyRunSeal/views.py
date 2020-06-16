@@ -111,7 +111,9 @@ def BFV_add(request):  # x_encrypted,y_encrypted是明文x，y对应的密文类
         relin_keys.load(BFV_context,"rel")        
     evaluator = Evaluator(BFV_context)
     add_encrypted = Ciphertext()
-    evaluator.add(x_encrypted, y_encrypted, add_encrypted)
+    plain_zero = Plaintext("0")
+    evaluator.add_plain(x_encrypted, plain_zero, add_encrypted)
+    evaluator.add_inplace(add_encrypted, y_encrypted)
     evaluator.relinearize_inplace(add_encrypted, relin_keys)
     add_encrypted.save("cipher")
     cipher = open("cipher","rb")
@@ -192,7 +194,9 @@ def BFV_sub(request):  # x_encrypted,y_encrypted是明文x，y对应的密文类
         relin_keys.load(BFV_context,"rel")
     evaluator = Evaluator(BFV_context)
     sub_encrypted = Ciphertext()
-    evaluator.sub(x_encrypted, y_encrypted, sub_encrypted)
+    plain_zero = Plaintext("0")
+    evaluator.sub_plain(x_encrypted, plain_zero, sub_encrypted)
+    evaluator.sub_inplace(sub_encrypted, y_encrypted)
     evaluator.relinearize_inplace(sub_encrypted, relin_keys)
     sub_encrypted.save("cipher")
     cipher = open("cipher","rb")
@@ -201,32 +205,6 @@ def BFV_sub(request):  # x_encrypted,y_encrypted是明文x，y对应的密文类
     return JsonResponse({
         "sub_encrypted": sub_encrypted
     })
-
-
-def BFV_pow(request):
-    if request.method == "POST":
-        cip = open("cip","wb")
-        cip.write(bytes.fromhex(request.POST.get("x_encrypted")))
-        x_encrypted = Ciphertext()
-        x_encrypted.load(BFV_context,"cip")
-        cip.close()
-        x = request.POST.get("x")
-        rel = open("rel","wb")
-        rel.write(bytes.fromhex(request.POST.get("relin_keys")))
-        relin_keys = KeyGenerator(BFV_context).relin_keys()
-        relin_keys.load(BFV_context,"rel")
-        rel.close()
-    evaluator = Evaluator(BFV_context)
-    pow_encrypted = Ciphertext()
-    evaluator.exponentiate(x_encrypted, int(x), relin_keys, pow_encrypted)
-    evaluator.relinearize_inplace(pow_encrypted, relin_keys)
-    pow_encrypted.save("cipher")
-    cipher = open("cipher","rb")
-    pow_encrypted  = ''.join(['%02X' %x  for x in cipher.read()])
-    cipher.close()
-    return JsonResponse({
-        "pow_encrypted": pow_encrypted
-    })     
 
 
 def CKKS_kengen(request):
@@ -252,7 +230,6 @@ def CKKS_kengen(request):
     })
 
 
-
 def CKKS_Encrypt(request):  # x是要加密的明文，public_key是公钥，返回x对应的密文类
     if request.method == "POST":
         x = request.POST.get("x")
@@ -266,7 +243,7 @@ def CKKS_Encrypt(request):  # x是要加密的明文，public_key是公钥，返
     encoder = CKKSEncoder(CKKS_context)
     inputs = DoubleVector([float(x)])
     plain = Plaintext()
-    scale = pow(2.0, 40)
+    scale = pow(2.0, 30)
     encoder.encode(inputs, scale, plain)
     encrypted = Ciphertext()
     encryptor.encrypt(plain, encrypted)
@@ -315,16 +292,6 @@ def CKKS_add(request):  # x_encrypted,y_encrypted是明文x，y对应的密文�
         relin_keys = KeyGenerator(CKKS_context).relin_keys()
         relin_keys.load(CKKS_context,"rel")
     evaluator = Evaluator(CKKS_context)
-    x_encrypted.scale(pow(2.0, 40))
-    y_encrypted.scale(pow(2.0, 40))
-    a = int(CKKS_context.get_context_data(x_encrypted.parms_id()).chain_index())
-    b = int(CKKS_context.get_context_data(y_encrypted.parms_id()).chain_index())
-    if(a < b):
-        last_parms_id = x_encrypted.parms_id()
-        evaluator.mod_switch_to_inplace(y_encrypted, last_parms_id)
-    else:
-        last_parms_id = y_encrypted.parms_id()
-        evaluator.mod_switch_to_inplace(x_encrypted, last_parms_id)
     add_encrypted = Ciphertext()
     evaluator.add(x_encrypted, y_encrypted, add_encrypted)
     evaluator.relinearize_inplace(add_encrypted, relin_keys)
@@ -336,40 +303,25 @@ def CKKS_add(request):  # x_encrypted,y_encrypted是明文x，y对应的密文�
         "add_encrypted": add_encrypted
     })
 
-
-
+    
 def CKKS_mul(request):  # x_encrypted,y_encrypted是明文x，y对应的密文类，返回x*y对应的密文类
     if request.method == "POST":
         cip = open("cip","wb")
         cip.write(bytes.fromhex(request.POST.get("x_encrypted")))
         x_encrypted = Ciphertext()
         x_encrypted.load(CKKS_context,"cip")
-        cip.close()
         cip = open("cip","wb")
         cip.write(bytes.fromhex(request.POST.get("y_encrypted")))
         y_encrypted = Ciphertext()
         y_encrypted.load(CKKS_context,"cip")
-        cip.close()
         rel = open("rel","wb")
         rel.write(bytes.fromhex(request.POST.get("relin_keys")))
         relin_keys = KeyGenerator(CKKS_context).relin_keys()
         relin_keys.load(CKKS_context,"rel")
-        rel.close()
     evaluator = Evaluator(CKKS_context)
-    x_encrypted.scale(pow(2.0, 40))
-    y_encrypted.scale(pow(2.0, 40))
-    a = int(CKKS_context.get_context_data(x_encrypted.parms_id()).chain_index())
-    b = int(CKKS_context.get_context_data(y_encrypted.parms_id()).chain_index())
-    if(a < b):
-        last_parms_id = x_encrypted.parms_id()
-        evaluator.mod_switch_to_inplace(y_encrypted, last_parms_id)
-    else:
-        last_parms_id = y_encrypted.parms_id()
-        evaluator.mod_switch_to_inplace(x_encrypted, last_parms_id)
     mul_encrypted = Ciphertext()
     evaluator.multiply(x_encrypted, y_encrypted, mul_encrypted)
     evaluator.relinearize_inplace(mul_encrypted, relin_keys)
-    evaluator.rescale_to_next_inplace(mul_encrypted)
     mul_encrypted.save("cipher")
     cipher = open("cipher","rb")
     mul_encrypted=''.join(['%02X' %x  for x in cipher.read()])
@@ -377,48 +329,6 @@ def CKKS_mul(request):  # x_encrypted,y_encrypted是明文x，y对应的密文�
     return JsonResponse({
         "mul_encrypted": mul_encrypted
     })
-
-def CKKS_mul1(request):  # x_encrypted,y_encrypted是明文x，y对应的密文类，返回x*y对应的密文类
-    if request.method == "POST":
-        lis = request.POST.get("lis")
-        lis = eval(lis)
-        lis_enc = []
-        for i in lis:
-            cip = open("cip","wb")
-            cip.write(bytes.fromhex(i))
-            x_encrypted = Ciphertext()
-            x_encrypted.load(CKKS_context,"cip")
-            cip.close()
-            lis_enc.append(x_encrypted)
-        rel = open("rel","wb")
-        rel.write(bytes.fromhex(request.POST.get("relin_keys")))
-        relin_keys = KeyGenerator(CKKS_context).relin_keys()
-        relin_keys.load(CKKS_context,"rel")
-        rel.close()
-    evaluator = Evaluator(CKKS_context)
-    mul_encrypted = Ciphertext()
-    if len(lis_enc) == 4:
-        tmp1 = ckks_mul(lis_enc[0], lis_enc[1], relin_keys ,CKKS_context)
-        tmp2 = ckks_mul(lis_enc[2], lis_enc[3], relin_keys ,CKKS_context) 
-        mul_encrypted = ckks_mul(tmp1, tmp2, relin_keys ,CKKS_context)
-    elif len(lis_enc) == 3:
-        tmp1 = ckks_mul(lis_enc[0], lis_enc[1], relin_keys ,CKKS_context)
-        mul_encrypted = ckks_mul(tmp1, lis_enc[2], relin_keys ,CKKS_context)
-    elif len(lis_enc) == 2:
-        mul_encrypted = ckks_mul(lis_enc[0], lis_enc[1], relin_keys ,CKKS_context)
-# evaluator.relinearize_inplace(mul_encrypted, relin_keys)
-    mul_encrypted.save("cipher")
-    cipher = open("cipher","rb")
-    mul_encrypted=''.join(['%02X' %x  for x in cipher.read()])
-    cipher.close()
-    return JsonResponse({
-        "mul_encrypted": mul_encrypted
-    })
-
-             
-
-
-         
 
 def CKKS_squr(request):  # x_encrypted,y_encrypted是明文x，y对应的密文类，返回x*y对应的密文类
     if request.method == "POST":
@@ -430,13 +340,12 @@ def CKKS_squr(request):  # x_encrypted,y_encrypted是明文x，y对应的密文�
         rel = open("rel","wb")
         rel.write(bytes.fromhex(request.POST.get("relin_keys")))
         relin_keys = KeyGenerator(CKKS_context).relin_keys()
-        relin_keys.load(CKKS_context,"rel")
+        relin_keys.load(BFV_context,"rel")
         rel.close()
     evaluator = Evaluator(CKKS_context)
     squr_encrypted = Ciphertext()
     evaluator.square(x_encrypted,  squr_encrypted)
     evaluator.relinearize_inplace(squr_encrypted, relin_keys)
-    evaluator.rescale_to_next_inplace(squr_encrypted)
     squr_encrypted.save("cipher")
     cipher = open("cipher","rb")
     squr_encrypted=''.join(['%02X' %x  for x in cipher.read()])
@@ -460,16 +369,6 @@ def CKKS_sub(request):  # x_encrypted,y_encrypted是明文x，y对应的密文�
         relin_keys = KeyGenerator(CKKS_context).relin_keys()
         relin_keys.load(CKKS_context,"rel")
     evaluator = Evaluator(CKKS_context)
-    x_encrypted.scale(pow(2.0, 40))
-    y_encrypted.scale(pow(2.0, 40))
-    a = int(CKKS_context.get_context_data(x_encrypted.parms_id()).chain_index())
-    b = int(CKKS_context.get_context_data(y_encrypted.parms_id()).chain_index())
-    if(a < b):
-        last_parms_id = x_encrypted.parms_id()
-        evaluator.mod_switch_to_inplace(y_encrypted, last_parms_id)
-    else:
-        last_parms_id = y_encrypted.parms_id()
-        evaluator.mod_switch_to_inplace(x_encrypted, last_parms_id)
     sub_encrypted = Ciphertext()
     plain_zero = Plaintext("0")
     evaluator.sub(x_encrypted, y_encrypted,sub_encrypted)
@@ -482,30 +381,5 @@ def CKKS_sub(request):  # x_encrypted,y_encrypted是明文x，y对应的密文�
         "sub_encrypted": sub_encrypted
     })
 
-
-def CKKS_pow(request):
-    if request.method == "POST":
-        cip = open("cip","wb")
-        cip.write(bytes.fromhex(request.POST.get("x_encrypted")))
-        x_encrypted = Ciphertext()
-        x_encrypted.load(CKKS_context,"cip")
-        cip.close()
-        x = request.POST.get("x")
-        rel = open("rel","wb")
-        rel.write(bytes.fromhex(request.POST.get("relin_keys")))
-        relin_keys = KeyGenerator(CKKS_context).relin_keys()
-        relin_keys.load(CKKS_context,"rel")
-        rel.close()
-    evaluator = Evaluator(CKKS_context)
-    pow_encrypted = Ciphertext()
-    evaluator.exponentiate(x_encrypted, int(x), relin_keys, pow_encrypted)
-    evaluator.relinearize_inplace(pow_encrypted, relin_keys)
-    pow_encrypted.save("cipher")
-    cipher = open("cipher","rb")
-    pow_encrypted  = ''.join(['%02X' %x  for x in cipher.read()])
-    cipher.close()
-    return JsonResponse({
-        "pow_encrypted": pow_encrypted
-    })
 
 

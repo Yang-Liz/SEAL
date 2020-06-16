@@ -26,10 +26,19 @@ urlpatterns = [
     path('seal/BFV_Encrypt', views.BFV_Encrypt),  # BFV加密
     path('seal/BFV_Decrypt', views.BFV_Decrypt),    # BFV解密
     path('seal/BFV_add', views.BFV_add),  # BFV加
+    path('seal/BFV_sub', views.BFV_sub),  # BFV减
     path('seal/BFV_mul', views.BFV_mul),  # BFV乘
+    path('seal/BFV_squr', views.BFV_squr),   #BFV平方
+    path('seal/BFV_pow', views.BFV_pow),   #BFV幂
+
     path('seal/CKKS_kengen', views.CKKS_kengen),  # CKKS密钥生成
     path('seal/CKKS_Encrypt', views.CKKS_Encrypt),  # CKKS加密
     path('seal/CKKS_Decrypt', views.CKKS_Decrypt),   # CKKS解密
     path('seal/CKKS_add', views.CKKS_add),   # CKKS加
     path('seal/CKKS_mul', views.CKKS_mul),   # CKKS乘
+    path('seal/CKKS_mul1', views.CKKS_mul1),   # CKKS乘
+    path('seal/CKKS_sub', views.CKKS_sub),  # CKKS减
+    path('seal/CKKS_squr', views.CKKS_squr),   #CKKS平方
+    path('seal/CKKS_pow', views.CKKS_pow),   #CKKS幂
+
 ]
